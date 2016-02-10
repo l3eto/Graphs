@@ -1,0 +1,31 @@
+body {
+    overflow:hidden;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    outline: 0;
+    font-size: 0;
+    vertical-align':baseline;
+    background: transparent;
+}
+
+.canvasDebugView {
+    border-bottom: 5px dotted salmon;
+}
+.img-src-preload {
+    visibility:collapse;
+}
+.simpleCnv {
+    padding:0px;
+    margin:0px;
+    position:absolute;
+    top:0px;
+    left:0px;
+    
+}
+#dobleCnv{
+    display:block;
+    clear:both;
+    width:1920px;
+}
+
