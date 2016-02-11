@@ -12,7 +12,7 @@ var mainFunction = function(soloCanvas){
     //Create class Game 
     var G = new Graph({
     	vertices		: '{1, 2, 3, 4, 5, 6}',
-    	relationship		: '{{1,2}, {1,5}, {2,3}, {2,5}, {3,4}, {4,5}, {4,6}}',
+    	relationships		: '{{1,2}, {1,5}, {2,3}, {2,5}, {3,4}, {4,5}, {4,6}}',
     	canvas 			: soloCanvas,
     	directed 	 	: false
     });
