@@ -180,6 +180,13 @@ Graph.prototype.addEventMouse = function(){
 	this._parent.addEventListener('mousemove', this.onMouseMove.bind(this) );
 	this._parent.addEventListener('mousedown', this.onMouseDown.bind(this) );
 	this._parent.addEventListener('mouseup', this.onMouseUp.bind(this) );
+	this._parent.addEventListener('resize', this.onResize.bind(this) );
+}
+
+Graph.prototype.onResize = function(e){
+	this._width = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
+	this._height = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
+	this._soloCanvas.updateSize();
 }
 
 Graph.prototype.onMouseMove = function(e){
