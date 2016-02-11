@@ -1,6 +1,3 @@
-var G; //handle duo canvas
-var D; //handle main game
-
 //starts EVERYTHING. Main entrance point
 window.onload = function () {
 
@@ -8,13 +5,16 @@ window.onload = function () {
     //EXAMPLE FOR CREATE YOUR DUO CANVAS
     //OPTION1 ===>> D = new DuoCanvas(4)  -->> create 4 layers(couples) of canvases, names autoasigned enumerated
     //OPTION2 ===>> D = new DuoCanvas('Background','Cards','Messages','Mouse');  -->> create 4 layers(couples) of canvases, names choosed
-    D = new SoloCanvas('Background','Nodes');
-
+    var D = new SoloCanvas('Background','Nodes');
 }
 
 var mainFunction = function(duoCanvas){
     //Create class Game 
-    G = new Graph('{1, 2, 3, 4, 5, 6}','{{1,2}, {1,5}, {2,3}, {2,5}, {3,4}, {4,5}, {4,6}}');
+    var G = new Graph({
+    	vertices:'{1, 2, 3, 4, 5, 6}',
+    	relationships:'{{1,2}, {1,5}, {2,3}, {2,5}, {3,4}, {4,5}, {4,6}}',
+    	directed:true
+    });
     //Add methods of duo Canvas to my Main Class
     G.addDuoCanvas( duoCanvas );
 }
@@ -32,7 +32,7 @@ var mainFunction = function(duoCanvas){
  * @update 04/02/2016
  */
 
-var Graph = function( V , E ){
+var Graph = function( params ){
 	this._parent = window;
 	this._duoCanvas = null;
 	this._ctx = ctx;
@@ -42,15 +42,20 @@ var Graph = function( V , E ){
 	this._animation = null;
 	this._mousex = null;
 	this._mousey = null;
+	this._mouseDown = false;
+	this._onlyOnce = true;
+
+	//Directed
+	this._directed = params.directed;
 
 	//Nodes
-	this._nodeString = V;
+	this._nodeString = params.vertices;
 	this._nodes = [];
 	this._nodesParse = /\w+\s*(?:(?:\;(?:\s*\w+\s*)?)+)?/gmi;
 	this.createNodes();
 
 	//Relationships
-	this._relationshipString = E;
+	this._relationshipString = params.relationships;
 	this._relationships = [];
 	this._relationshipsParse = /\w+\s*(?:(?:\,(?:\s*\w+\s*)?)+)?/gmi;
 	this.createRelationShips();
@@ -131,6 +136,14 @@ Graph.prototype.startDraw = function(){
 Graph.prototype.addDuoCanvas = function(duoCanvas){
 	this._duoCanvas = duoCanvas;
 	this._ctx = duoCanvas._ctx1;
+	this.setPositions();
+}
+
+Graph.prototype.setPositions = function(){
+
+
+
+
 	this.playDraw();
 }
 
@@ -144,6 +157,10 @@ Graph.prototype.drawRelationships = function(){
 	this._ctx.clearRect( 0, 0, this._width, this._height);
 	for (var i = 0; i < this._relationships.length; i++) {
 		this._relationships[i].draw();
+		if(this._relationships[i]._active){
+			this._relationships[i]._nodeA._active = true;
+			this._relationships[i]._nodeB._active = true;
+		}
 	}
 }
 
@@ -157,6 +174,8 @@ Graph.prototype.drawNodes = function(){
 
 Graph.prototype.addEventMouse = function(){
 	this._parent.addEventListener('mousemove', this.onMouseMove.bind(this) );
+	this._parent.addEventListener('mousedown', this.onMouseDown.bind(this) );
+	this._parent.addEventListener('mouseup', this.onMouseUp.bind(this) );
 }
 
 Graph.prototype.onMouseMove = function(e){
@@ -165,8 +184,17 @@ Graph.prototype.onMouseMove = function(e){
 	this._mousey = e.clientY - rect.top;
 }
 
+Graph.prototype.onMouseDown = function(e){
+	this._mouseDown = true;
+}
 
-
+Graph.prototype.onMouseUp = function(e){
+	this._mouseDown = false;
+	this._onlyOnce = true;
+	for (var i = 0; i < this._nodes.length; i++) {
+		this._nodes[i]._movingNode = false;
+	}
+}
 
 
 
@@ -204,6 +232,16 @@ var Node = function( params ){
 	this._posx = 100*parseInt(params.name)*1.5;
 	this._posy = this._graph._height/2;
 	this._mouseOver = false;
+	this._active = false;
+	this._colorOut = '#555a5e';
+	this._colorOver = '#444ec1';
+	this._colorText = 'white';
+	this._colorBlur = 'white';
+	this._sizeText = '40px';
+	this._fontText = 'tahoma';
+	this._newPosx = null;
+	this._newPosy = null;
+	this._movingNode = false;
 
 	//node dates
 	this._vector = [];
@@ -215,6 +253,20 @@ var Node = function( params ){
 	this._incomingDegree = this._incomings.length;
 	this._outgoings = [];
 	this._outgoingDegree =this._outgoings.length;
+}
+
+Node.prototype.showNodeName = function(){
+	this._graph._ctx.save();
+	this._graph._ctx.fillStyle = this._colorText;
+	this._graph._ctx.font = this._sizeText+' '+this._fontText;
+	if(this._active || this._mouseOver){
+		this._graph._ctx.shadowColor = this._colorBlur;
+		this._graph._ctx.shadowOffsetX = 0; 
+		this._graph._ctx.shadowOffsetY = 0; 
+		this._graph._ctx.shadowBlur = 8;
+	}
+	this._graph._ctx.centeredText( this._name, this._posx, this._posy );
+	this._graph._ctx.restore();
 }
 
 Node.prototype.setName = function(name){
@@ -263,27 +315,43 @@ Node.prototype.toString = function(){
 }
 
 Node.prototype.draw = function(){
-	if((this._graph._mousex-this._posx)*(this._graph._mousex-this._posx)+(this._graph._mousey-this._posy)*(this._graph._mousey-this._posy) >= this._radius*this._radius ){
-		this._mouseOver = true;
-	}else{
-		this._mouseOver = false;
-	}
-}
-
-Node.prototype.draw = function(){
 	if((( this._graph._mousex - this._posx )*( this._graph._mousex - this._posx ) + 
 		( this._graph._mousey - this._posy )*( this._graph._mousey - this._posy ))< 
 		( this._radius*this._radius) ){
+		this._mouseOver = true;
+		if(this._graph._mouseDown) this._movingNode = true;
+	}else{
+		this._mouseOver = false;
+	}
+	this.drawNode();
+}
+
+Node.prototype.drawNode = function(){
+	if(this._mouseOver || this._movingNode || this._active){
+		if(this._movingNode) this.moveNode();
 		this.mouseOver();
 	}else{
 		this.mouseOut();
+	}
+	this.showNodeName();
+	this._active = false;
+}
+
+Node.prototype.moveNode = function(){
+	if( this._graph._onlyOnce ){
+		this._newPosx = this._posx-this._graph._mousex;
+		this._newPosy = this._posy-this._graph._mousey;
+		this._graph._onlyOnce = false;
+	}else{
+		this._posx = this._graph._mousex + this._newPosx;
+		this._posy = this._graph._mousey + this._newPosy;
 	}
 }
 
 Node.prototype.mouseOver = function(){
 	this._graph._ctx.save();
 	this._graph._ctx.beginPath();
-	this._graph._ctx.fillStyle = 'blue';
+	this._graph._ctx.fillStyle = this._colorOver;
 	this._graph._ctx.fillCircle( this._posx, this._posy, this._radius);
     this._graph._ctx.restore();
 }
@@ -291,7 +359,7 @@ Node.prototype.mouseOver = function(){
 Node.prototype.mouseOut = function(){
 	this._graph._ctx.save();
 	this._graph._ctx.beginPath();
-	this._graph._ctx.fillStyle = 'red';
+	this._graph._ctx.fillStyle = this._colorOut;
     this._graph._ctx.fillCircle( this._posx, this._posy, this._radius);
     this._graph._ctx.restore();
 }
@@ -434,13 +502,17 @@ var Relationship = function( params ){
 	this._posx1 = this._nodeB._posx;
 	this._posy0 = this._nodeA._posy;
 	this._posy1 = this._nodeB._posy;
-	this._tolerance = 4;
+	this._tolerance = 5;
 	this._mouseOver = false;
 	this._dx = null;
 	this._dy = null;
 	this._distance = null;
 	this._tan = null;
 	this._linePoint = null;
+	this._colorOver = '#008ae6';
+	this._colorOut = '#535679';
+	this._widthOver = 2.5;
+	this._widthOut = 1;
 }
 
 Relationship.prototype.toString = function(){
@@ -459,18 +531,37 @@ Relationship.prototype.setName = function( name){
 	this._name = name;
 }
 
+Relationship.prototype.updatePositions = function(){
+	this._posx0 = this._nodeA._posx;
+	this._posx1 = this._nodeB._posx;
+	this._posy0 = this._nodeA._posy;
+	this._posy1 = this._nodeB._posy;
+}
+
 Relationship.prototype.draw = function(){
+	this.updatePositions();
 	this._linePoint = this.getPointNearestMouse();
 	this._distance = Math.abs(Math.sqrt( (this._graph._mousex - this._linePoint.x)*(this._graph._mousex - this._linePoint.x) + (this._graph._mousey - this._linePoint.y)*(this._graph._mousey - this._linePoint.y)) );
     if(this._distance < this._tolerance){
       	if( this._graph._mousex < this._posx0 - this._tolerance || this._graph._graph._mousex > this._posx1 + this._tolerance ){
-      		this.mouseOut();
+      		this._mouseOver = false;
       	}else{
-      		this.mouseOver();
+      		this._mouseOver = true;
       	}
     }else{ 
-    	this.mouseOut(); 
+    	this._mouseOver = false;
     }
+    this.drawRelationship();
+}
+
+Relationship.prototype.drawRelationship = function(){
+	if(this._mouseOver){
+		this._active=true;
+		this.mouseOver();
+	}else{
+		this._active=false;
+		this.mouseOut();
+	}
 }
 
 Relationship.prototype.getPointNearestMouse = function(){
@@ -482,24 +573,27 @@ Relationship.prototype.getPointNearestMouse = function(){
 }
 
 Relationship.prototype.mouseOver = function(){
+	this._graph._ctx.save();
 	this._graph._ctx.beginPath();
-	this._graph._ctx.strokeStyle = 'red';
+	this._graph._ctx.lineWidth = this._widthOver;
+	this._graph._ctx.strokeStyle = this._colorOver;
 	this._graph._ctx.moveTo( this._posx0, this._posy0 );
 	this._graph._ctx.lineTo( this._posx1, this._posy1 );
 	this._graph._ctx.stroke();
+	this._graph._ctx.restore();
 	//draw circle where mouse is --> this._graph._ctx.fillCircle(this._linePoint.x, this._linePoint.y, this._tolerance);
 }
 
 Relationship.prototype.mouseOut = function(){
+	this._graph._ctx.save();
 	this._graph._ctx.beginPath();
-	this._graph._ctx.strokeStyle = 'black';
+	this._graph._ctx.lineWidth = this._widthOut;
+	this._graph._ctx.strokeStyle = this._colorOut;
 	this._graph._ctx.moveTo( this._posx0, this._posy0 );
 	this._graph._ctx.lineTo( this._posx1, this._posy1 );
 	this._graph._ctx.stroke();
+	this._graph._ctx.restore();
 }
-
-
-
 
 
 
