@@ -100,25 +100,17 @@ SoloCanvas.prototype.startSoloCanvas = function(){
 SoloCanvas.prototype.createCoupleCanvases = function(i){
     this._objTCanvas = [];
     var canv1 = document.createElement('canvas');
-    //asign id's to canvaces
     canv1.id = this._canvasNames[i];
-    //add canvaces to html index
     document.getElementById('dobleCnv').appendChild(canv1); 
-    //gets elements as var
     this._tjsCanvas1 = document.getElementById(this._canvasNames[i]);
-    //gets 2d drawing context for the canvases
     this._tctx1 = this._tjsCanvas1.getContext('2d');
-    //size
-    this._tjsCanvas1.width = window.innerWidth;
-    this._tjsCanvas1.height = window.innerHeight;
-    //position
+    this._tjsCanvas1.width = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
+    this._tjsCanvas1.height = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
     this._tjsCanvas1.style.position = 'absolute';
     this._tjsCanvas1.style.left = '0px';
     this._tjsCanvas1.style.top = '0px';
-    //vector temporal
     this._objTCanvas.push(this._tjsCanvas1);
     this._objTCanvas.push(this._tctx1);
-    //añadir
     this._jsCanvases.push( this._objTCanvas );
 }
 
@@ -153,6 +145,25 @@ SoloCanvas.prototype.changeContext = function(n){
 }
 
 
+
+
+
+
+
+/**
+ * Method for update size of canvases on resize
+ *
+ * @author Juan Acuña Silvera
+ * @update 27/01/2016
+ *
+ */
+
+SoloCanvas.prototype.updateSize = function(){
+    for (var i = 0; i < this._canvasNames.length; i++) {
+        document.getElementById(this._canvasNames[i]).width = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
+        document.getElementById(this._canvasNames[i]).height = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
+    }
+}
 
 
 
