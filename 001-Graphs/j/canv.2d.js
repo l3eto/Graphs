@@ -291,6 +291,10 @@ CanvasRenderingContext2D.prototype.fillCircle = function( x, y, radius){
 }
 
 
+
+
+
+
 /**
  * draw a stroke circle
  *
@@ -308,3 +312,61 @@ CanvasRenderingContext2D.prototype.strokeCircle = function( x, y, radius){
     this.closePath();
     this.restore();
 }
+
+
+
+
+
+
+/**
+ * draw a wrap text
+ *
+ * @author Juan Acuña Silvera
+ * @update 11/02/2015
+ *
+ * @example : ctx.wrapedText("Hello World!\n\nMom what u doing.\n\n\nBeru is hungry.",40,40,140,15);
+ */
+
+CanvasRenderingContext2D.prototype.wrapedText = function ( text, x, y, width, lineHeight) {
+    var jumps = text.split("\n");
+    for (var i = 0; i < jumps.length; i++) {
+        var w = jumps[i].split(' ');
+        var line = '';
+        for (var n = 0; n < w.length; n++) {
+            var testLine = line + w[n] + ' ';
+            var metrics = this.measureText(testLine);
+            var testWidth = metrics.width;
+            if (testWidth > width && n > 0) {
+                this.fillText(line, x, y);
+                line = w[n] + ' ';
+                y += lineHeight;
+            } else {
+                line = testLine;
+            }
+        }
+        this.fillText(line, x, y);
+        y += lineHeight;
+    }
+}
+
+
+
+
+
+
+/**
+ * full centered Text
+ *
+ * @author Juan Acuña Silvera
+ * @update 11/02/2015
+ *
+ * @example : ctx.centeredText("Hello World!",x,y);
+ */
+
+ CanvasRenderingContext2D.prototype.centeredText = function( text, x, y){
+    this.save();
+    this.textBaseline = "middle";
+    this.textAlign = "center";
+    this.fillText(text,x,y);
+    this.restore();
+ }
