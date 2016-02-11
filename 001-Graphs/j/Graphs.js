@@ -8,15 +8,14 @@ window.onload = function () {
     var D = new SoloCanvas('Background','Nodes');
 }
 
-var mainFunction = function(duoCanvas){
+var mainFunction = function(soloCanvas){
     //Create class Game 
     var G = new Graph({
-    	vertices:'{1, 2, 3, 4, 5, 6}',
-    	relationships:'{{1,2}, {1,5}, {2,3}, {2,5}, {3,4}, {4,5}, {4,6}}',
-    	directed:true
+    	vertices		: '{1, 2, 3, 4, 5, 6}',
+    	relationships 	: '{{1,2}, {1,5}, {2,3}, {2,5}, {3,4}, {4,5}, {4,6}}',
+    	canvas 			: soloCanvas,
+    	directed 	 	: false
     });
-    //Add methods of duo Canvas to my Main Class
-    G.addDuoCanvas( duoCanvas );
 }
 
 
@@ -33,9 +32,10 @@ var mainFunction = function(duoCanvas){
  */
 
 var Graph = function( params ){
+	//values for handle canvas
 	this._parent = window;
-	this._duoCanvas = null;
-	this._ctx = ctx;
+	this._soloCanvas = null;
+	this._ctx = null;
 	this._width = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
 	this._height = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
 	this._radius = null;
@@ -47,6 +47,9 @@ var Graph = function( params ){
 
 	//Directed
 	this._directed = params.directed;
+
+	//Draw
+	this._canvas = params.canvas;
 
 	//Nodes
 	this._nodeString = params.vertices;
@@ -64,6 +67,7 @@ var Graph = function( params ){
 	this._graph = this;
 	this.createRoutes();
 	this.addEventMouse();
+	if(this._canvas) this.addSoloCanvas();
 }
 
 Graph.prototype.setNodes = function( V ){
@@ -133,14 +137,14 @@ Graph.prototype.startDraw = function(){
     this.drawNodes();
 }
 
-Graph.prototype.addDuoCanvas = function(duoCanvas){
-	this._duoCanvas = duoCanvas;
-	this._ctx = duoCanvas._ctx1;
+Graph.prototype.addSoloCanvas = function(){
+	this._soloCanvas = this._canvas;
+	this._ctx = this._canvas._ctx1;
 	this.setPositions();
 }
 
 Graph.prototype.setPositions = function(){
-
+	//set positions automatically ... working
 
 
 
@@ -148,8 +152,8 @@ Graph.prototype.setPositions = function(){
 }
 
 Graph.prototype.changeContext = function(n) {
-    this._duoCanvas.changeContext(n);
-    this._ctx = this._duoCanvas._ctx1;
+    this._soloCanvas.changeContext(n);
+    this._ctx = this._soloCanvas._ctx1;
 }
 
 Graph.prototype.drawRelationships = function(){
@@ -235,10 +239,13 @@ var Node = function( params ){
 	this._active = false;
 	this._colorOut = '#555a5e';
 	this._colorOver = '#444ec1';
+	this._colorBorder = '#9fa5df';
 	this._colorText = 'white';
 	this._colorBlur = 'white';
 	this._sizeText = '40px';
 	this._fontText = 'tahoma';
+	this._blurEffect = 10;
+	this._lineWidth = 3;
 	this._newPosx = null;
 	this._newPosy = null;
 	this._movingNode = false;
@@ -261,9 +268,9 @@ Node.prototype.showNodeName = function(){
 	this._graph._ctx.font = this._sizeText+' '+this._fontText;
 	if(this._active || this._mouseOver){
 		this._graph._ctx.shadowColor = this._colorBlur;
-		this._graph._ctx.shadowOffsetX = 0; 
-		this._graph._ctx.shadowOffsetY = 0; 
-		this._graph._ctx.shadowBlur = 8;
+		this._graph._ctx.shadowOffsetX = 0;
+		this._graph._ctx.shadowOffsetY = 0;
+		this._graph._ctx.shadowBlur = this._blurEffect;
 	}
 	this._graph._ctx.centeredText( this._name, this._posx, this._posy );
 	this._graph._ctx.restore();
@@ -354,6 +361,7 @@ Node.prototype.mouseOver = function(){
 	this._graph._ctx.fillStyle = this._colorOver;
 	this._graph._ctx.fillCircle( this._posx, this._posy, this._radius);
     this._graph._ctx.restore();
+    if(this._movingNode) this.effectMovingNode();
 }
 
 Node.prototype.mouseOut = function(){
@@ -361,6 +369,15 @@ Node.prototype.mouseOut = function(){
 	this._graph._ctx.beginPath();
 	this._graph._ctx.fillStyle = this._colorOut;
     this._graph._ctx.fillCircle( this._posx, this._posy, this._radius);
+    this._graph._ctx.restore();
+}
+
+Node.prototype.effectMovingNode = function(){
+	this._graph._ctx.save();
+	this._graph._ctx.beginPath();
+	this._graph._ctx.lineWidth = this._lineWidth;
+	this._graph._ctx.strokeStyle = this._colorBorder;
+    this._graph._ctx.strokeCircle( this._posx, this._posy, this._radius);
     this._graph._ctx.restore();
 }
 
@@ -502,7 +519,7 @@ var Relationship = function( params ){
 	this._posx1 = this._nodeB._posx;
 	this._posy0 = this._nodeA._posy;
 	this._posy1 = this._nodeB._posy;
-	this._tolerance = 5;
+	this._tolerance = 7;
 	this._mouseOver = false;
 	this._dx = null;
 	this._dy = null;
