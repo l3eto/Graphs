@@ -1,23 +1,3 @@
-//CANV.3D
-//HTML5 S3D dual canvas drawing toolkit
-//Author: diekus
-//date of creation: 25/4/2013
-//date of last modification: 20/06/2015
-//This is pre-release code. It needs cleanup and structure. Working on it. 
-/*Can manage now several sets of canvases on a page!*/
-var ctx = null;
-
-
-
-
-
-
-
-
-
-
-
-
 /**
  * Create Class for create Multiple Canvaces and change Context
  *
