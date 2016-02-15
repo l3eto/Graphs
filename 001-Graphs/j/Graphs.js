@@ -1,4 +1,5 @@
 //starts EVERYTHING. Main entrance point
+var G;
 window.onload = function () {
 
     //create duo canvases
@@ -10,9 +11,9 @@ window.onload = function () {
 
 var mainFunction = function(soloCanvas){
     //Create class Game 
-    var G = new Graph({
-    	vertices		: '{1, 2, 3, 4, 5, 6}',
-    	relationships		: '{{1,2}, {1,5}, {2,3}, {2,5}, {3,4}, {4,5}, {4,6}}',
+    G = new Graph({
+    	vertices		: '{1, 2, 3, 4, 5, 6, 7, 8, 9}',
+    	relationships		: '{{1,2,1}, {2,3,1}, {1,4,1}, {2,5,1}, {3,6,1}, {4,7,1}, {5,8,1} ,{6,9,1}, {4,5,1}, {5,6,1}, {7,8,1}, {8,9,1}}',
     	canvas 			: soloCanvas,
     	directed 	 	: false
     });
@@ -33,6 +34,7 @@ var mainFunction = function(soloCanvas){
 
 var Graph = function( params ){
 	//values for handle canvas
+	this._activeMenu = false;
 	this._parent = window;
 	this._soloCanvas = null;
 	this._ctx = null;
@@ -44,6 +46,9 @@ var Graph = function( params ){
 	this._mousey = null;
 	this._mouseDown = false;
 	this._onlyOnce = true;
+	this._leftClick = 1;
+	this._saveImage = null;
+	this._menuFunctions = [ [ function(){this.saveImage(); this.removeContextMenu();} , 'Save graph as image'], [ function(){ console.log(this); this.removeContextMenu();} , 'Find min route'] ];
 
 	//Directed
 	this._directed = params.directed;
@@ -88,6 +93,13 @@ Graph.prototype.setRelationship = function( E ){
 Graph.prototype.getNode = function( nodeName ){
 	for (var i = 0; i < this._nodes.length; i++) {
 		if(this._nodes[i].getName() == nodeName) return this._nodes[i];
+	}
+	return null;
+}
+
+Graph.prototype.getRelationShip = function( relationshipName ){
+	for (var i = 0; i < this._relationships.length; i++) {
+		if(this._relationships[i].getName() == relationshipName) return this._relationships[i];
 	}
 	return null;
 }
@@ -141,14 +153,28 @@ Graph.prototype.addSoloCanvas = function(){
 	this._soloCanvas = this._canvas;
 	this._ctx = this._canvas._ctx1;
 	this.setPositions();
+	this.playDraw();
 }
 
 Graph.prototype.setPositions = function(){
-	//set positions automatically ... working
-
-
-
-	this.playDraw();
+	var filas = Math.floor( Math.sqrt(this._nodes.length) );
+	var columnas = Math.round( this._nodes.length/filas );
+	var k = 0;
+	for (var i = 0; i < filas; i++) {
+		for (var j = 0; j < columnas; j++) {
+			if(this._nodes[k]) this._nodes[k].setPositions( (this._width/(columnas+1))*(j+1) , (this._height/(filas+1))*(i+1) );
+			k++;
+		}
+	}
+	if(this._width>this._height){
+		for (var i = 0; i < this._nodes.length; i++) {
+			this._nodes[i].setRadius( this._height/(filas+1)/2 );
+		}
+	}else{
+		for (var i = 0; i < this._nodes.length; i++) {
+			this._nodes[i].seRadius( this._width/(columnas+1)/2 );
+		}
+	}
 }
 
 Graph.prototype.changeContext = function(n) {
@@ -181,12 +207,49 @@ Graph.prototype.addEventMouse = function(){
 	this._parent.addEventListener('mousedown', this.onMouseDown.bind(this) );
 	this._parent.addEventListener('mouseup', this.onMouseUp.bind(this) );
 	this._parent.addEventListener('resize', this.onResize.bind(this) );
+	this._parent.document.oncontextmenu = function(){return false;};
+	this._parent.addEventListener("contextmenu", this.contextMenu.bind(this) );
+}
+
+Graph.prototype.contextMenu = function(e){
+	if( this._activeMenu ){ this.removeContextMenu(); };
+	this.pauseDraw();
+  	this._activeMenu = true;
+  	this._contextMenu = document.createElement('div');
+  	this._contextMenu.className = "contextualMenu";
+  	this._contextMenu.style.cursor = 'pointer';
+  	for(var i=0;i<this._menuFunctions.length;i++){
+		this.addOption( this._menuFunctions[i], this._contextMenu);
+	}
+  	document.body.appendChild(this._contextMenu);
+  	this._contextMenu.style.top = this._mousey + "px";
+  	this._contextMenu.style.left = this._mousex + "px";
+  	this._ctx.canvas.addEventListener('click', this.removeContextMenu.bind(this) , false);
+}
+
+Graph.prototype.addOption = function( option, contextMenu ){
+	var div = document.createElement('div');
+  	div.className = "contextualMenuOption";
+  	var span = document.createElement('span');
+  	span.appendChild(document.createTextNode(option[1]));
+  	div.appendChild(span);
+  	contextMenu.appendChild(div);
+  	div.addEventListener('click', option[0].bind(this) , false);
+}
+
+Graph.prototype.removeContextMenu = function(){
+	if(this._activeMenu){
+    	document.body.removeChild( this._contextMenu );
+    	this._activeMenu = false;
+    	this.playDraw();
+    }
 }
 
 Graph.prototype.onResize = function(e){
 	this._width = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
 	this._height = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
 	this._soloCanvas.updateSize();
+	this.setPositions();
 }
 
 Graph.prototype.onMouseMove = function(e){
@@ -196,20 +259,37 @@ Graph.prototype.onMouseMove = function(e){
 }
 
 Graph.prototype.onMouseDown = function(e){
-	this._mouseDown = true;
-}
-
-Graph.prototype.onMouseUp = function(e){
-	this._mouseDown = false;
-	this._onlyOnce = true;
-	for (var i = 0; i < this._nodes.length; i++) {
-		this._nodes[i]._movingNode = false;
+	if(e.which==this._leftClick){
+		this._mouseDown = true;
 	}
 }
 
+Graph.prototype.onMouseUp = function(e){
+	if(e.which==this._leftClick){
+		this._mouseDown = false;
+		this._onlyOnce = true;
+		for (var i = 0; i < this._nodes.length; i++) {
+			this._nodes[i]._movingNode = false;
+		}
+	}
+}
 
-
-
+Graph.prototype.saveImage = function(){
+	this._saveImage = null;
+	this._saveImage = document.createElement('CANVAS');
+	this._saveImage.id = 'save';
+	this._saveImage.width=this._width;
+	this._saveImage.height=this._height;
+	var context = this._saveImage.getContext('2d');
+	for (var i = 0; i < this._soloCanvas._canvasNames.length; i++) {
+		context.drawImage(document.getElementById( this._soloCanvas._canvasNames[i] ),0,0);
+	}
+	var b = this._saveImage.toDataURL('png');
+    var a  = document.createElement('a');
+    a.href = b;
+    a.download = 'Graph.png';
+    a.click();
+} 
 
 
 
@@ -232,16 +312,18 @@ Graph.prototype.onMouseUp = function(e){
 /**
  * Class Node
  *
- * @author Juan Acuña Silvera
+ * @author Juan Acuña - Beru
  * @update 04/02/2016
  */
 
 var Node = function( params ){
 	//for draw
 	this._graph = params.graph;
-	this._radius = 50;
-	this._posx = 100*parseInt(params.name)*1.5;
-	this._posy = this._graph._height/2;
+	this._minradius = 25;
+	this._maxradius = 50;
+	this._radius = null;
+	this._posx = null;
+	this._posy = null;
 	this._mouseOver = false;
 	this._active = false;
 	this._colorOut = '#555a5e';
@@ -267,6 +349,23 @@ var Node = function( params ){
 	this._incomingDegree = this._incomings.length;
 	this._outgoings = [];
 	this._outgoingDegree =this._outgoings.length;
+}
+
+Node.prototype.setRadius = function( radius){
+	if(radius < this._minradius || radius > this._maxradius){
+		if(radius<this._minradius){
+			this._radius = this._minradius;
+		}else{
+			this._radius = this._maxradius;
+		}
+	}else{
+		this._radius = radius;
+	}
+}
+
+Node.prototype.setPositions = function(x, y){
+	this._posx = x;
+	this._posy = y;
 }
 
 Node.prototype.showNodeName = function(){
@@ -390,7 +489,7 @@ Node.prototype.effectMovingNode = function(){
 
 Node.prototype.setRoutes = function(){
 	for (var i = 0; i < this._vector.length; i++) {
-		this._routes.push( new Route( this._vector[i]) );
+		this._routes.push( new Route( {graph: this._graph, route: this._vector[i]} ));
 	}
 }
 Node.prototype.getNewRoutes = function( ){
@@ -487,7 +586,51 @@ Node.prototype.exist = function( value ){
 	}
 }
 
+Node.prototype.getMinRouteTo = function( Node ){
+	var a =[];
+	for (var i = 0; i < this._routes.length; i++) {
+		if( this._routes[i].getRouteTo( Node.toString() ) ){
+			a.push( this._routes[i].getRouteTo( Node.toString() ) );
+		}
+	}
 
+	var b = [];
+	for (var i = 0; i < a.length; i++) {
+		b.push(a[i].length);
+	}
+
+	var min = Math.min.apply(null, b);
+	var c = [];
+	for (var i = 0; i < a.length; i++) {
+		if(b[i]==min) c.push(a[i]);
+	}
+
+	var d = [];
+	for (var i = 0; i < c.length; i++) {
+		if( d.length==0 ){
+			d.push( c[i] );
+		}else{
+			var e = false;
+			for (var j = 0; j < d.length; j++) {
+				if( this.compareVectors(c[i],d[j]) ) e = true;
+			}
+			if(!e) d.push(c[i]);
+		}
+	}
+	if(d.length>0){
+		var g = [];
+		for (var i = 0; i < d.length; i++) {
+			var f = '';
+			for (var j = 0; j < d[i].length; j++) {
+				f += ' > '.concat( d[i][j].toString() );
+			}
+			g.push(new Route({graph: this._graph, route: f}));
+		}
+		return g;
+	}else{
+		return null;
+	}
+}
 
 
 
@@ -518,6 +661,7 @@ var Relationship = function( params ){
 	this._parse = /\w+\s*(?:(?:\;(?:\s*\w+\s*)?)+)?/gmi;
 	this._nodeA = this.getNode(this._name,0);
 	this._nodeB = this.getNode(this._name,1);
+	this._weigth = this.getWeight();
 	this._nodeA.elementA( this._nodeB );
 	this._nodeB.elementB( this._nodeA );
 
@@ -547,8 +691,12 @@ Relationship.prototype.getNode = function( name, element){
 	return this._graph.getNode( name.match( this._parse )[element] );
 }
 
+Relationship.prototype.getWeight = function(){
+	return parseInt(this._name.match( this._parse )[2]);
+}
+
 Relationship.prototype.getName = function(){
-	return this._name;
+	return ' > '.concat( this._nodeA.getName(), ' > ',this._nodeB.getName() );
 }
 
 Relationship.prototype.setName = function( name){
@@ -634,10 +782,12 @@ Relationship.prototype.mouseOut = function(){
  * @update 05/02/2016
  */
 
-var Route = function( text ){
+var Route = function( params ){
+	this._graph = params.graph;
 	this._routesParse = /\b(\d+)\b.*?/gmi;
-	this._routeString = text;
+	this._routeString = params.route;
 	this._stops = null;
+	this._jumps = [];
 	this.setNodes();
 }
 
@@ -647,7 +797,27 @@ Route.prototype.setNodes = function(){
 		this['stop_'+i] = this._routeString.match( this._routesParse )[i];
 	}
 	this._stops = i;
+	this.setJumps();
 }
 
+Route.prototype.setJumps = function(){
+	for (var i = 0; i < this._stops-1; i++) {
+		this._jumps.push( this._graph.getRelationShip( ' > '.concat( this._graph.getNode( this['stop_'+i] ).getName(), ' > ',  this._graph.getNode( this['stop_'+(i+1)]).getName() ) ) ) ;
+	}
+}
 
-
+Route.prototype.getRouteTo = function( n ){
+	var a = [];
+	var b = false;
+	for (var i = 0; i < this._stops; i++) {
+		if(this['stop_'+i] == n) b=true;
+	}
+	if(b){
+		for (var i = 0; i < this._stops; i++) {
+			a.push(this['stop_'+i])
+			if(this['stop_'+i] == n) break;
+		}
+		return a;
+	}
+	if(!b) return null;
+}
