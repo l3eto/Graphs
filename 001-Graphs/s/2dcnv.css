@@ -4,8 +4,7 @@ body {
     padding: 0;
     border: 0;
     outline: 0;
-    font-size: 0;
-    vertical-align':baseline;
+    vertical-align:baseline;
     background: transparent;
 }
 
@@ -29,3 +28,33 @@ body {
     width:1920px;
 }
 
+/*Menu Graphs CSS*/
+.contextualMenu {
+    min-width: 100px;
+    margin: .4em 0;
+    top: 0px;
+    left: 0px;
+    position: absolute;
+    background: #D8D8D8;
+    border-left: 4px solid #FF4411;
+    box-shadow: 2px 2px 5px #888888;
+    font-size: 0.8em;  
+}
+
+.contextualMenuOption {
+    min-height: 20px;
+    min-width: 100px;
+    padding: 1px;
+}
+
+.contextualMenuOption span{
+    font-family: 'Roboto', sans-serif;
+    min-height: 20px;
+    min-width: 100px;
+    padding: 3px;
+}
+
+.contextualMenuOption:hover{
+    background: #FF4411;
+    color:#FFFFFF;
+}
