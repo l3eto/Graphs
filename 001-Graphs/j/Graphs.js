@@ -47,7 +47,7 @@ var Graph = function( params ){
 	this._onlyOnce = true;
 	this._leftClick = 1;
 	this._saveImage = null;
-	this._menuFunctions = [ [ function(){this.saveImage(); this.removeContextMenu();} , 'Save graph as image'], [ function(){ this.getMinRouteTo(); this.removeContextMenu();} , 'Find min route'] ];
+	this._menuFunctions = [ [ function(){this.saveImage(); this.removeContextMenu();} , 'Save graph as image'], [ function(){ this.getMinRouteTo(); this.removeContextMenu();} , 'Find min route'],[ function(){ this.clearRoute(); this.removeContextMenu();}, 'Clear Route'] ];
 	this._vertexActive = null;
 	this._firstVertex = null;
 	this._getSecondVertex = false;
@@ -232,6 +232,7 @@ Graph.prototype.contextMenu = function(e){
   	for(var i=0;i<this._menuFunctions.length;i++){
 		if( i == 0 ) this.addOption( this._menuFunctions[i], this._contextMenu);
 		if( this._vertexActive && i == 1 ) this.addOption( this._menuFunctions[i], this._contextMenu);
+		if( this._routeActive && i == 2 ) this.addOption( this._menuFunctions[i], this._contextMenu);
 	}
   	document.body.appendChild(this._contextMenu);
   	this._contextMenu.style.top = this._mousey + "px";
@@ -240,6 +241,7 @@ Graph.prototype.contextMenu = function(e){
 }
 
 Graph.prototype.getMinRouteTo = function(){
+	this.clearRoute();
 	this._firstVertex = this._vertexActive;
 	this._firstVertex.getNewRoutes();
 	this._firstVertex.setRoutes();
@@ -257,10 +259,9 @@ Graph.prototype.onMouseClick = function(e){
 			if( this.getNodeActive(e) ){
 				this.getNodeActive(e).getNewRoutes();
 				this.getNodeActive(e).setRoutes();
-				console.log( this._firstVertex );
-				console.log( this.getNodeActive(e) );
-				console.log( this._firstVertex.getRouteMin( this.getNodeActive(e) )[0]._routeString );
+				this._firstVertex.getRouteMin(this.getNodeActive(e))[0].drawRoute();
 				this._getSecondVertex = false;
+				this._routeActive = true;
 			}
 		}
 	}
@@ -335,7 +336,7 @@ Graph.prototype.getNodeActive = function(e){
 }
 
 Graph.prototype.saveImage = function(){
-	if( confirm("Download Graph.png") ){
+	if( confirm("¿Download png?") ){
 		this._saveImage = null;
 		this._saveImage = document.createElement('CANVAS');
 		this._saveImage.id = 'save';
@@ -352,6 +353,18 @@ Graph.prototype.saveImage = function(){
 	    a.click();
 	}	
 } 
+
+Graph.prototype.clearRoute = function(){
+	if(this._routeActive){
+		for (var i = 0; i < this._relationships.length; i++) {
+			this._relationships[i]._routeActive = false;
+		}
+		for (var i = 0; i < this._nodes.length; i++) {
+			this._nodes[i]._routeActive = false;
+		}
+		this._routeActive = false;
+	}
+}
 
 
 
@@ -389,6 +402,7 @@ var Vertex = function( params ){
 	this._posy = null;
 	this._mouseOver = false;
 	this._active = false;
+	this._colorRoute = '#c14444';
 	this._colorOut = '#555a5e';
 	this._colorOver = '#444ec1';
 	this._colorBorder = '#9fa5df';
@@ -404,6 +418,7 @@ var Vertex = function( params ){
 	this._newPosy = null;
 	this._movingVertex = false;
 	this._menuActive = false;
+	this._routeActive = false;
 
 	//node dates
 	this._vector = [];
@@ -551,14 +566,26 @@ Vertex.prototype.isActive = function(x,y){
 }
 
 Vertex.prototype.drawNode = function(){
-	if(this._mouseOver || this._movingVertex || this._active){
-		if(this._movingVertex) this.moveNode();
-		this.mouseOver();
+	if(this._routeActive){
+		this.routeActive();
 	}else{
-		this.mouseOut();
+		if(this._mouseOver || this._movingVertex || this._active){
+			if(this._movingVertex) this.moveNode();
+			this.mouseOver();
+		}else{
+			this.mouseOut();
+		}
 	}
 	this.showNodeName();
 	this._active = false;
+}
+
+Vertex.prototype.routeActive = function(){
+	this._graph._ctx.save();
+	this._graph._ctx.beginPath();
+	this._graph._ctx.fillStyle = this._colorRoute;
+	this._graph._ctx.fillCircle( this._posx, this._posy, this._radius);
+    this._graph._ctx.restore();
 }
 
 Vertex.prototype.moveNode = function(){
@@ -713,8 +740,10 @@ Vertex.prototype.getRouteMin = function( Vertex ){
 		var a = [];
 		for (var i = 0; i < this._routes.length; i++) {
 			var newRoute = this._routes[i].getRouteTo( Vertex );
-			if( this.isNewRoute(newRoute, a) ){
-				a.push( newRoute );
+			if( newRoute ){
+				if( this.isNewRoute(newRoute, a) ){
+					a.push( newRoute );
+				}
 			}
 		}
 		var b = [];
@@ -774,6 +803,7 @@ var Edge = function( params ){
 	this._weight = this.getWeight();
 	this._nodeA.elementA( this._nodeB );
 	this._nodeB.elementB( this._nodeA );
+	this._routeActive = false;
 
 	//draw values
 	this._posx0 = this._nodeA._posx;
@@ -790,6 +820,7 @@ var Edge = function( params ){
 	this._colorActive = '#22c383';
 	this._colorOver = '#008ae6';
 	this._colorOut = '#535679';
+	this._colorRoute = '#c14444';
 	this._widthOver = 2.5;
 	this._widthOut = 1;
 }
@@ -838,13 +869,28 @@ Edge.prototype.draw = function(){
 }
 
 Edge.prototype.drawRelationship = function(){
-	if(this._mouseOver){
-		this._active=true;
-		this.mouseOver();
+	if(this._routeActive){
+		this.drawRoute();
 	}else{
-		this._active=false;
-		this.mouseOut();
+		if(this._mouseOver){
+			this._active=true;
+			this.mouseOver();
+		}else{
+			this._active=false;
+			this.mouseOut();
+		}
 	}
+}
+
+Edge.prototype.drawRoute = function(){
+	this._graph._ctx.save();
+	this._graph._ctx.beginPath();
+	this._graph._ctx.lineWidth = this._widthOut;
+	this._graph._ctx.strokeStyle = this._colorRoute;
+	this._graph._ctx.moveTo( this._posx0, this._posy0 );
+	this._graph._ctx.lineTo( this._posx1, this._posy1 );
+	this._graph._ctx.stroke();
+	this._graph._ctx.restore();
 }
 
 Edge.prototype.getPointNearestMouse = function(){
@@ -913,6 +959,14 @@ Route.prototype.setNodes = function(){
 	this.setJumps();
 }
 
+Route.prototype.getNodes = function(){
+	var a = [];
+	for (var i = 0; i < this._stops; i++) {
+		a.push(this['stop_'+i]);
+	}
+	return a;
+}
+
 Route.prototype.setJumps = function(){
 	for (var i = 0; i < this._stops-1; i++) {
 		this._jumps.push( this._graph.getRelationShip( ' > '.concat( this._graph.getNode( this['stop_'+i] ).getName(), ' > ',  this._graph.getNode( this['stop_'+(i+1)]).getName() ) ) ) ;
@@ -929,21 +983,18 @@ Route.prototype.setWeight = function(){
 
 Route.prototype.getRouteTo = function( Node ){
 	if( this.nodeExist(Node) ){
-		var nodeName = Node.getName();
-		var a = '';
-		for (var i = 0; i < this._routeString.length; i++) {
-			var txt = '';
-			for (var j = 0; j < nodeName.length; j++) {
-				txt+=this._routeString[i+j];
-			}
-			txt += this._routeString[i+j+1];
-			if( txt+' ' == nodeName ){
-				a += txt;
+		var a = [];
+		for (var i = 0; i < this._stops; i++) {
+			a.push( ' > '+this['stop_'+i]);
+			if( this['stop_'+i] == Node.getName() ){
 				break;
 			}
-			a += this._routeString[i];
 		}
-		return new Route( {graph: this._graph, route: a} );
+		var t = '';
+		for (var i = 0; i < a.length; i++) {
+			t += a[i];
+		}
+		return new Route( {graph: this._graph, route: t} );
 	}
 }
 
@@ -956,4 +1007,13 @@ Route.prototype.nodeExist = function( Node){
 
 Route.prototype.getRouteString = function(){
 	return this._routeString;
+}
+
+Route.prototype.drawRoute = function(){
+	for (var i = 0; i < this._jumps.length; i++) {
+		this._jumps[i]._routeActive = true;
+	}
+	for (var i = 0; i < this._stops; i++) {
+		this._graph.getNode( this['stop_'+i] )._routeActive = true;
+	}
 }
